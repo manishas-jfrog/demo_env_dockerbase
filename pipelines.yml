@@ -30,7 +30,7 @@ resources:
       sourceArtifactory: {{ .Values.artifactory }}
 
 pipelines:
-  - name: pipeline_dbp
+  - name: build_base_image
     steps:
       - name: docker_build
         type: DockerBuild
