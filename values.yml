@@ -1,0 +1,4 @@
+artifactory: demoArt
+gitProvider: manishas_jfrog
+repoPath: manishas-jfrog/demo_env_dockerbase
+imageName: http://146.148.104.158:8082/docker-local/dockersample

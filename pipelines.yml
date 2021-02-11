@@ -1,0 +1,80 @@
+template: true   # required for local templates
+valuesFilePath: ./values.yml
+
+resources:
+  - name: docker_repo
+    type: GitRepo
+    configuration:
+      gitProvider: {{ .Values.gitProvider }}                      # <-- replace with your integration
+      path: {{ .Values.repoPath }}    # <-- replace with your repository name
+      branches:
+        include: master
+
+  - name: docker_base_image
+    type: Image
+    configuration:
+      registry: {{ .Values.artifactory }}                                # <-- replace with your artifactory integration
+      sourceRepository: docker-local               # <-- required if registry is Artifactory
+      imageName: {{ .Values.imageName }}  # < -- replace with your image path and name
+      imageTag: latest
+      autoPull: true
+
+  - name: docker_sample_build
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: {{ .Values.artifactory }}
+
+  - name: docker_promoted_build
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: {{ .Values.artifactory }}
+
+pipelines:
+  - name: pipeline_dbp
+    steps:
+      - name: docker_build
+        type: DockerBuild
+        configuration:
+          affinityGroup: docker_group
+          dockerFileLocation: .
+          dockerFileName: Dockerfile
+          dockerImageName: {{ .Values.imageName }}  # replace with your image path and name
+          dockerImageTag: ${run_number}
+          inputResources:
+            - name: docker_repo
+          integrations:
+            - name: {{ .Values.artifactory }}                            # <-- replace with your artifactory integration
+
+      - name: docker_push
+        type: DockerPush
+        configuration:
+          affinityGroup: docker_group
+          targetRepository: docker-local
+          integrations:
+            - name: {{ .Values.artifactory }}                            # <-- replace with your artifactory integration
+          inputSteps:
+            - name: docker_build
+          outputResources:
+            - name: docker_base_image
+
+      - name: publish_dbp_build
+        type: PublishBuildInfo
+        configuration:
+          affinityGroup: docker_group
+          inputSteps:
+            - name: docker_push
+          outputResources:
+            - name: docker_sample_build
+
+      - name: promote_dbp_build
+        type: PromoteBuild
+        configuration:
+          affinityGroup: docker_group
+          targetRepository: docker-promoted
+          copy: true
+          integrations:
+            - name: {{ .Values.artifactory }}
+          inputResources:
+            - name: docker_sample_build
+          outputResources:
+            - name: docker_promoted_build
